@@ -103,14 +103,18 @@ app.get('/api/courses/:id/subcourses', async (req, res) => {
 
 app.put('/api/subcourses/:id', async (req, res) => {
     try {
+        console.log(`Received update for subcourse ${req.params.id}:`, req.body); // Log incoming request
         const subCourse = await SubCourse.findByPk(req.params.id);
         if (subCourse) {
             await subCourse.update(req.body);
+            console.log("Update successful");
             res.json(subCourse);
         } else {
+            console.log("Subcourse not found");
             res.status(404).json({ error: 'Subcourse not found' });
         }
     } catch (error) {
+        console.error("PUT SubCourse Error:", error); // Log full error
         res.status(400).json({ error: error.message });
     }
 });

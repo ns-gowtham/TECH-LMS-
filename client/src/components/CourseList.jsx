@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Layers, Pencil } from 'lucide-react'; // Added Pencil
+import { Plus, Layers, Pencil, Lock } from 'lucide-react'; // Added Pencil, Lock
 import { Modal } from './TrainerList'; // Reuse Modal from TrainerList
 
 const Input = ({ label, name, type = "text", required = true, defaultValue = "", ...props }) => (
@@ -295,8 +295,12 @@ const SubCourseManager = ({ courseId }) => {
     };
 
     const handleStatusChange = async (subCourseId, newStatus) => {
-        // Optimistic update
-        setSubCourses(subCourses.map(sc => sc.id === subCourseId ? { ...sc, status: newStatus } : sc));
+        console.log(`Attempting to update subcourse ${subCourseId} to ${newStatus}`);
+
+        // Optimistic update with functional state to ensure we have latest data
+        setSubCourses(prevSubCourses =>
+            prevSubCourses.map(sc => sc.id === subCourseId ? { ...sc, status: newStatus } : sc)
+        );
 
         try {
             const res = await fetch(`http://localhost:3000/api/subcourses/${subCourseId}`, {
@@ -304,9 +308,19 @@ const SubCourseManager = ({ courseId }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
             });
-            if (!res.ok) fetchSubCourses(); // Revert on failure
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error("Server refused update:", errorText);
+                alert("Failed to save status: " + errorText);
+                fetchSubCourses(); // Revert
+            } else {
+                console.log("Status update saved successfully");
+            }
         } catch (error) {
-            console.error("Failed to update status", error);
+            console.error("Network error updating status", error);
+            alert("Network error: Could not save status");
+            fetchSubCourses(); // Revert
         }
     };
 
@@ -375,7 +389,7 @@ const SubCourseManager = ({ courseId }) => {
                         </div>
                     ) : (
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            {subCourses.map(sc => (
+                            {subCourses.map((sc, index) => (
                                 <li key={sc.id} style={{
                                     padding: '1rem',
                                     marginBottom: '0.75rem',
@@ -387,41 +401,14 @@ const SubCourseManager = ({ courseId }) => {
                                     alignItems: 'center',
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                                 }}>
-                                    <div style={{ flex: 1, marginRight: '1rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{sc.title}</div>
-                                            <button
-                                                onClick={() => handleEditClick(sc)}
-                                                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 0 }}
-                                                title="Edit"
-                                            >
-                                                <Pencil size={12} />
-                                            </button>
-                                        </div>
-                                        {sc.description && <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>{sc.description}</div>}
-                                        {sc.link && <a href={sc.link} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: 'var(--tech-blue)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                            View Content ↗
-                                        </a>}
-                                    </div>
-                                    <select
-                                        value={sc.status || 'Not Started'}
-                                        onChange={(e) => handleStatusChange(sc.id, e.target.value)}
-                                        style={{
-                                            padding: '4px 10px',
-                                            background: `${getStatusColor(sc.status)}10`,
-                                            color: getStatusColor(sc.status),
-                                            fontWeight: 600,
-                                            fontSize: '0.75rem',
-                                            cursor: 'pointer',
-                                            outline: 'none',
-                                            minWidth: '110px',
-                                            textAlign: 'center'
-                                        }}
-                                    >
-                                        <option value="Not Started">Not Started</option>
-                                        <option value="In Progress">In Progress</option>
-                                        <option value="Completed">Completed</option>
-                                    </select>
+                                    <SubcourseItem
+                                        subCourse={sc}
+                                        index={index}
+                                        allSubCourses={subCourses}
+                                        onEdit={() => handleEditClick(sc)}
+                                        onStatusChange={handleStatusChange}
+                                        getStatusColor={getStatusColor}
+                                    />
                                 </li>
                             ))}
                         </ul>
@@ -429,5 +416,64 @@ const SubCourseManager = ({ courseId }) => {
                 </div>
             )}
         </div>
+    );
+};
+
+// Helper component for logic isolation
+const SubcourseItem = ({ subCourse, index, allSubCourses, onEdit, onStatusChange, getStatusColor }) => {
+    // Logic: Locked if previous item exists and is NOT Completed
+    const isLocked = index > 0 && allSubCourses[index - 1].status !== 'Completed';
+
+    return (
+        <>
+            <div style={{ flex: 1, marginRight: '1rem', opacity: isLocked ? 0.5 : 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{subCourse.title}</div>
+                    {!isLocked && (
+                        <button
+                            onClick={onEdit}
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 0 }}
+                            title="Edit"
+                        >
+                            <Pencil size={12} />
+                        </button>
+                    )}
+                    {isLocked && <Lock size={12} style={{ color: '#94a3b8' }} />}
+                </div>
+
+                {subCourse.description && <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>{subCourse.description}</div>}
+
+                {subCourse.link && !isLocked && (
+                    <a href={subCourse.link} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: 'var(--tech-blue)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        View Content ↗
+                    </a>
+                )}
+            </div>
+
+            <select
+                value={subCourse.status || 'Not Started'}
+                onChange={(e) => onStatusChange(subCourse.id, e.target.value)}
+                disabled={isLocked}
+                style={{
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    border: `1px solid ${getStatusColor(subCourse.status)}60`,
+                    background: `${getStatusColor(subCourse.status)}10`,
+                    color: isLocked ? '#94a3b8' : getStatusColor(subCourse.status),
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                    outline: 'none',
+                    minWidth: '110px',
+                    textAlign: 'center',
+                    opacity: isLocked ? 0.6 : 1
+                }}
+            >
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress" disabled={isLocked}>In Progress</option>
+                <option value="Completed" disabled={isLocked}>Completed</option>
+            </select>
+            {isLocked && <div style={{ marginLeft: '10px' }}><Lock size={16} color="#94a3b8" /></div>}
+        </>
     );
 };
