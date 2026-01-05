@@ -1,0 +1,8 @@
+{
+    "appId": "com.fusionhubble.app",
+    "appName": "FusionHubble",
+    "webDir": "dist",
+    "server": {
+        "androidScheme": "https"
+    }
+}
