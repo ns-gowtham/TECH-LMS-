@@ -1,4 +1,4 @@
-# Fusion Hubble LMS
+# LMS
 
 A comprehensive Learning Management System built with ReactJS, Node.js, and PostgreSQL.
 Designed for Desktop Web, Android, and iOS.
