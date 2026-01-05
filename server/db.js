@@ -33,8 +33,26 @@ export const Student = sequelize.define('Student', {
 export const Course = sequelize.define('Course', {
     title: { type: DataTypes.STRING, allowNull: false },
     thumbnail: { type: DataTypes.STRING }, // URL
-    redirection_link: { type: DataTypes.STRING } // URL
+    redirection_link: { type: DataTypes.STRING }, // URL
+    status: {
+        type: DataTypes.ENUM('Not Started', 'In Progress', 'Completed'),
+        defaultValue: 'Not Started'
+    }
 });
+
+export const SubCourse = sequelize.define('SubCourse', {
+    title: { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT },
+    link: { type: DataTypes.STRING }, // Video or content link
+    status: {
+        type: DataTypes.ENUM('Not Started', 'In Progress', 'Completed'),
+        defaultValue: 'Not Started'
+    }
+});
+
+// Associations
+Course.hasMany(SubCourse, { onDelete: 'CASCADE' });
+SubCourse.belongsTo(Course);
 
 export const initDB = async () => {
     try {

@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { initDB, Trainer, Student, Course } from './db.js';
+import { initDB, Trainer, Student, Course, SubCourse } from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,8 +57,62 @@ app.post('/api/courses', async (req, res) => {
 });
 
 app.get('/api/courses', async (req, res) => {
-    const courses = await Course.findAll();
+    const courses = await Course.findAll({
+        include: SubCourse,
+        order: [['id', 'ASC']] // Consistent ordering
+    });
     res.json(courses);
+});
+
+app.put('/api/courses/:id', async (req, res) => {
+    try {
+        const course = await Course.findByPk(req.params.id);
+        if (course) {
+            await course.update(req.body);
+            res.json(course);
+        } else {
+            res.status(404).json({ error: 'Course not found' });
+        }
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// SubCourse Routes
+app.post('/api/subcourses', async (req, res) => {
+    try {
+        const subCourse = await SubCourse.create(req.body);
+        res.status(201).json(subCourse);
+    } catch (error) {
+        console.error(error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/api/courses/:id/subcourses', async (req, res) => {
+    try {
+        const subCourses = await SubCourse.findAll({
+            where: { CourseId: req.params.id },
+            order: [['id', 'ASC']]
+        });
+        res.json(subCourses);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/subcourses/:id', async (req, res) => {
+    try {
+        const subCourse = await SubCourse.findByPk(req.params.id);
+        if (subCourse) {
+            await subCourse.update(req.body);
+            res.json(subCourse);
+        } else {
+            res.status(404).json({ error: 'Subcourse not found' });
+        }
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 
 // Start Server
